@@ -1,0 +1,17 @@
+{
+  "name": "dk-discord-ai-bot",
+  "version": "1.0.0",
+  "description": "Bot selfbot com IA de persuasão disfarçada, controlado via terminal, por DK 🥷",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "painel": "node painel.js"
+  },
+  "keywords": ["discord", "selfbot", "ia", "openrouter", "gemini", "persuasao"],
+  "author": "DK 🥷",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "discord.js-selfbot-v13": "^1.9.3"
+  }
+}
