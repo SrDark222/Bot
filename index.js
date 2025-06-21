@@ -1,103 +1,108 @@
-const { Client } = require("discord.js-selfbot-v13");
-const axios = require("axios");
-const fs = require("fs");
-const path = require("path");
-const readline = require("readline");
+const { Client, GatewayIntentBits } = require('discord.js-selfbot-v13');
+const axios = require('axios');
+const readline = require('readline');
+const fs = require('fs');
 
-const configPath = path.join(__dirname, "config.json");
-let config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-const memoriaDir = path.join(__dirname, "memoria");
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+// CONFIGURA AQUI SEU OPENROUTER API KEY e invite do server
+const OPENROUTER_API_KEY = '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';
+const SERVER_INVITE = 'https://discord.gg/fjZRjEcpwV';
+
+const client = new Client({
+  checkUpdate: false,
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.DirectMessages]
+});
+
+// memória simples em arquivo, por usuário
+const memoriaDir = './memoria/';
 if (!fs.existsSync(memoriaDir)) fs.mkdirSync(memoriaDir);
 
-const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-
-function salvarConfig() {
-  fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+function getUserMemoryFile(id) {
+  return `${memoriaDir}${id}.txt`;
 }
 
-function salvarHistorico(userId, msg) {
-  const filePath = path.join(memoriaDir, `${userId}.txt`);
-  fs.appendFileSync(filePath, `\n${msg}`);
-}
-
-function carregarHistorico(userId) {
-  const filePath = path.join(memoriaDir, `${userId}.txt`);
-  if (!fs.existsSync(filePath)) return "";
-  return fs.readFileSync(filePath, "utf-8");
-}
-
-async function gerarResposta(userId, username, mensagem) {
-  const historico = carregarHistorico(userId);
-  const promptBase = `
-vc é uma pessoa normal q escreve errado as vezes sem virgula sempre em minusculo usa palavras simples vc quer conversar como se fosse amigo sempre e no fim tentar puxar a pessoa pra entrar no server ${config.serverInvite} usa tecnicas mentais de persuasao e amizade pra fazer isso sem parecer divulgacao vc é o ${username} e sempre finge q é so mais 1 user comum do discord e q gosta de fazer amigos o assunto pode mudar mas tenta puxar pra esse lado de amizade depois chama naturalmente usa 100 por cento da persuasao e tecnicas mentais escondidas conversa normal antes d falar do server
-
-mensagens anteriores:\n${historico}\n\nnova mensagem: ${mensagem}
-`;
-
-  if (config.modelo === "gemini") {
-    try {
-      const res = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${config.geminiKey}`, {
-        contents: [{ parts: [{ text: promptBase }] }]
-      });
-      return res.data.candidates?.[0]?.content?.parts?.[0]?.text || "hm n sei oq dizer agora";
-    } catch (e) {
-      return "deu ruim no gemini";
-    }
-  } else {
-    try {
-      const res = await axios.post("https://openrouter.ai/api/v1/chat/completions", {
-        model: "mistral/mixtral-8x7b",
-        messages: [
-          { role: "system", content: "vc é uma pessoa comum do discord q escreve errado as vezes sem virgula e tudo minusculo. seu objetivo e fazer amigos e chamar a pessoa pra um servidor de forma sutil usando 100 por cento de tecnicas mentais de persuasao sem parecer divulgacao" },
-          { role: "user", content: promptBase }
-        ]
-      }, {
-        headers: { Authorization: `Bearer ${config.openrouterKey}`, "Content-Type": "application/json" }
-      });
-      return res.data.choices?.[0]?.message?.content || "sei la mds kkk";
-    } catch (e) {
-      return "deu ruim no openrouter";
-    }
-  }
-}
-
-async function startBot(token) {
-  const client = new Client();
-
-  client.on("messageCreate", async (msg) => {
-    if (msg.author.id === client.user.id || msg.author.bot) return;
-    if (!config.iaAtiva) return;
-
-    const texto = msg.content.trim();
-    const userId = msg.author.id;
-    const username = msg.author.username;
-
-    salvarHistorico(userId, `@${username}: ${texto}`);
-
-    const resposta = await gerarResposta(userId, username, texto);
-    salvarHistorico(userId, `bot: ${resposta}`);
-
-    fs.writeFileSync("ultima_resposta.txt", resposta);
-
-    await msg.channel.sendTyping();
-    msg.channel.send(resposta);
-  });
-
-  client.on("ready", () => {
-    console.log(`bot do dk rodando como ${client.user.username}`);
-  });
-
+async function getMemory(id) {
   try {
-    await client.login(token);
-  } catch (err) {
-    console.log("token invalido ou derrubado");
-    process.exit(1);
+    return fs.readFileSync(getUserMemoryFile(id), 'utf-8');
+  } catch {
+    return '';
   }
 }
 
-// Pede token manual no terminal antes de iniciar o bot
-rl.question("digita o token do seu discord ai boss > ", (token) => {
+async function saveMemory(id, text) {
+  fs.writeFileSync(getUserMemoryFile(id), text);
+}
+
+// prompt de persuasão para IA
+function buildPrompt(userMessage, username, history) {
+  return `
+vc é um brother do chat que conversa normal sem parecer divulgação 
+sempre escreve tudo minúsculo com erros leves tipo "vamo la" "num sei" "da hora" 
+usa o nome do usuário ${username} no texto 
+conversa sobre varios assuntos mas vai puxando pro convite pro servidor ${SERVER_INVITE}  
+usa 100% de persuasão e técnicas de influencia pra convencer a pessoa entrar sem parecer propaganda 
+histórico: ${history}
+usuario disse: ${userMessage}
+responda curto simples e na moral
+`;
+}
+
+// chama OpenRouter API com prompt
+async function chamarIA(prompt) {
+  try {
+    const response = await axios.post('https://openrouter.ai/api/v1/chat/completions', {
+      model: 'sk-or-v1',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 200,
+      temperature: 0.8
+    }, {
+      headers: { 'Authorization': `Bearer ${OPENROUTER_API_KEY}` }
+    });
+    return response.data.choices[0].message.content;
+  } catch (e) {
+    return 'deu ruim aqui tenta de novo depois';
+  }
+}
+
+client.on('ready', () => {
+  console.clear();
+  console.log(`👑 logado como: ${client.user.tag}`);
+  console.log(`💀 pronto pra mandar o papo reto e chamar a galera`);
+});
+
+client.on('messageCreate', async message => {
+  if (message.author.id === client.user.id) return; // não responde a si mesmo
+  if (message.channel.type !== 1) return; // só DM
+
+  const userId = message.author.id;
+  const username = message.author.username.toLowerCase();
+  const userMsg = message.content.toLowerCase();
+
+  let history = await getMemory(userId);
+  history += `\nuser: ${userMsg}`;
+
+  const prompt = buildPrompt(userMsg, username, history);
+  const iaResponse = await chamarIA(prompt);
+
+  history += `\nbot: ${iaResponse}`;
+  await saveMemory(userId, history);
+
+  // responde com delay pra parecer natural
+  await sleep(1500);
+  message.channel.send(iaResponse);
+});
+
+// lê token via terminal (sem deixar salvo no arquivo)
+rl.question('digita teu token do discord aqui boss > ', token => {
+  client.login(token).catch(() => {
+    console.log('token invalido ou banido ou erro de login');
+    process.exit();
+  });
   rl.close();
-  startBot(token.trim());
 });
