@@ -1,0 +1,74 @@
+# ======================================
+# DK Discord AI Bot - .gitignore Pro
+# ======================================
+
+# 🧠 Pastas de dependência e build
+node_modules/
+dist/
+build/
+out/
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+.vuepress/dist
+.temp
+.serverless/
+.docusaurus/
+.fusebox/
+.dynamodb/
+.web_modules/
+bower_components/
+jspm_packages/
+web_modules/
+
+# 🧼 Logs e debug
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# 📄 Arquivos temporários e de runtime
+*.pid
+*.seed
+*.pid.lock
+*.tgz
+*.tsbuildinfo
+.lock-wscript
+.yarn-integrity
+.pnp.*
+.rpt2_cache/
+.rts2_cache_*/
+.nyc_output/
+coverage/
+*.lcov
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# 📦 Cache de linters e bundlers
+.eslintcache
+.stylelintcache
+
+# 💻 Histórico do REPL
+.node_repl_history
+
+# 🔐 Variáveis de ambiente e configs sensíveis
+.env
+.env.local
+.env.*.local
+config.json
+
+# 🧠 Arquivos de memória e IA do bot
+ultima_resposta.txt
+memoria/
+
+# 🛠 IDEs e testes
+.vscode/
+.idea/
+.vscode-test/
+.tern-port
+
+# 🎨 Comentado: public dir (se não usar Gatsby ou Next.js, pode deixar comentado)
+# public
